@@ -1,11 +1,15 @@
 import React, {useEffect, useState} from 'react';
-import {useDispatch, useSelector,} from 'react-redux';
-import {deleteUser, fetchUsers, updateUser} from '../../store/actions/user.action';
+import {useSelector,} from 'react-redux';
+import {deleteUser, fetchUsers, updateUser,} from '../../store/actions/user.action';
 import {User} from "../../models/user";
-import {UserState} from "../../store/reducers/user.reducer";
+import {UsersSelector} from "../../store/selectors/user.selector";
+import {useAppDispatch} from "../../store/store";
+import {Button} from "react-bootstrap";
 
 const UserList = () => {
-    const {users, error, user} = useSelector((state: UserState) => state)
+    const users = useSelector(UsersSelector);
+    const dispatch = useAppDispatch()
+
     const [isUpdateUser, setIsUpdateUser] = useState<boolean>(false);
     const [selectedUserId, setSelectedUserId] = useState<number>();
     const [updatedUser, setUser] = useState<User>({
@@ -13,16 +17,46 @@ const UserList = () => {
         lastName: '',
         email: '',
     });
-    const dispatch = useDispatch();
+    const [validationErrors, setValidationErrors] = useState({
+        firstName: '',
+        lastName: '',
+        email: '',
+    });
+    const [isSaveDisabled, setIsSaveDisabled] = useState(false);
 
     const updateUserValue = (field: string, value: string) => {
         setUser((prevState) => {
-            return { ...prevState, [field]: value };
+            return {...prevState, [field]: value};
         });
-    }
-    const handleSubmit = (e: any, userId: number|undefined, user: User) => {
+        if ((field === 'firstName' || field === 'lastName') && (value.length < 3 || value.length > 20)) {
+            setValidationErrors((prevErrors) => ({
+                ...prevErrors,
+                [field]: 'Please enter between 3 and 20 characters.',
+            }));
+            setIsSaveDisabled(true);
+
+        } else {
+            setValidationErrors((prevErrors) => ({
+                ...prevErrors,
+                [field]: '',
+            }));
+            setIsSaveDisabled(false);
+        }
+    };
+
+    const handleSubmit = (e: any, userId: number | undefined, user: User) => {
         e.preventDefault()
-        if(userId){
+        if (
+            !user.firstName ||
+            !user.lastName ||
+            !user.email ||
+            validationErrors.firstName ||
+            validationErrors.lastName
+        ) {
+            console.error("Please fill in all fields correctly.");
+            return;
+        }
+        if (userId) {
             dispatch(updateUser(userId, user));
         }
         setUser({
@@ -30,14 +64,19 @@ const UserList = () => {
             lastName: '',
             email: '',
         });
+        setIsUpdateUser(false)
+        setIsSaveDisabled(false);
+
     };
+
     const handleDelete = (userId: number | undefined) => {
         if (userId) {
             dispatch(deleteUser(userId));
         }
     };
+
     const handleEdit = (user: User) => {
-        if(user.id){
+        if (user.id) {
             setSelectedUserId(user.id)
             setIsUpdateUser(true)
         }
@@ -49,55 +88,71 @@ const UserList = () => {
     };
 
     useEffect(() => {
-        const loadUsers = async () => {
-            // @ts-ignore
-            await dispatch(fetchUsers());
-        };
-        loadUsers();
-    }, [dispatch]);
+        dispatch(fetchUsers());
+    }, []);
+
     return (
-        <div>
+        <div className={"d-flex flex-column col-5 py-4"}>
             <h2>User List</h2>
-            {users && users.length && users.map((user: User) => (
-                <ul>
+            <ol>
+                {Array.isArray(users) && users.length && users.map((user: User) => (
+
                     <li key={user.id}>
-                        {user.firstName} {user.firstName}
-                        <button onClick={() => handleDelete(user.id)}>Delete</button>
-                        <button onClick={() => handleEdit(user)}>Edit</button>
+                        <div className={"d-flex flex-column mb-2"}>
+                            <span>Name: {user.firstName}</span>
+                            <span>Lastname: {user.lastName}</span>
+                            <span>Email: {user.email}</span>
+                        </div>
+                        <div className={"d-flex mb-2 col-4 justify-content-between"}>
+                            <Button variant={"outline-danger"} onClick={() => handleDelete(user.id)}>Delete</Button>
+                            <Button variant={"outline-secondary"} onClick={() => handleEdit(user)}>Edit</Button>
+                        </div>
+
+                        {isUpdateUser && user.id === selectedUserId && (
+                            <form onSubmit={(e) => handleSubmit(e, selectedUserId, updatedUser)}>
+                                <label className={"d-block mb-2"}>
+                                    First Name:
+                                    <input
+                                        className={`input-group ${validationErrors.firstName ? 'is-invalid' : ''}`}
+                                        type="text"
+                                        value={updatedUser.firstName}
+                                        onChange={(e) => updateUserValue("firstName", e.target.value)}
+                                    />
+                                    {validationErrors.firstName && (
+                                        <div className="invalid-feedback">{validationErrors.firstName}</div>
+                                    )}
+                                </label>
+                                <label className={"d-block mb-2"}>
+                                    Last Name:
+                                    <input
+                                        className={`input-group ${validationErrors.lastName ? 'is-invalid' : ''}`}
+                                        type="text"
+                                        value={updatedUser.lastName}
+                                        onChange={(e) => updateUserValue("lastName", e.target.value)}
+                                    />
+                                    {validationErrors.lastName && (
+                                        <div className="invalid-feedback">{validationErrors.lastName}</div>
+                                    )}
+                                </label>
+                                <label className={"d-block mb-2"}>
+                                    Email:
+                                    <input
+                                        className={"input-group"}
+                                        type="email"
+                                        value={updatedUser.email}
+                                        onChange={(e) => updateUserValue("email", e.target.value)}
+                                    />
+                                </label>
+                                <div  className={"d-flex w-100 justify-content-between align-items-baseline"} >
+                                    <Button type="submit" variant={"primary"} disabled={isSaveDisabled}>Save Changes</Button>
+                                    <Button variant={"light"} onClick={() => setIsUpdateUser(false)}>Cancel</Button>
+                                </div>
+
+                            </form>
+                        )}
                     </li>
-                    { isUpdateUser && user.id === selectedUserId && (
-                        <form onSubmit={(e) => handleSubmit(e, selectedUserId, updatedUser)}>
-                            <label style={{display: "block", marginBottom: "10px"}}>
-                                First Name:
-                                <input
-                                    type="text"
-                                    value={updatedUser.firstName}
-                                    onChange={(e) => updateUserValue("firstName", e.target.value)}
-                                />
-                            </label>
-                            <label style={{display: "block"}}>
-                                Last Name:
-                                <input
-                                    type="text"
-                                    value={updatedUser.lastName}
-                                    onChange={(e) => updateUserValue("lastName", e.target.value)}
-                                />
-                            </label>
-                            <label style={{display: "block"}}>
-                                Email:
-                                <input
-                                    type="email"
-                                    value={updatedUser.email}
-                                    onChange={(e) => updateUserValue("email", e.target.value)}
-                                />
-                            </label>
-
-                            <button type="submit">Save Changes</button>
-                        </form>
-                    )}
-                </ul>
-            ))}
-
+                ))}
+            </ol>
         </div>
     )
 };

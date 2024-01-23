@@ -1,38 +1,70 @@
-import userService from "../service/userService";
+import {getAll, create, deleteOne, updateOne, getOne} from "../service/userService";
 import { User } from "../../models/user";
+import {ADD_USER, DELETE_USER, FETCH_USER_BY_ID, FETCH_USERS, UPDATE_USER} from "./types";
 
-export const FETCH_USERS_SUCCESS = 'FETCH_USERS_SUCCESS';
-export const FETCH_USER_BY_ID_SUCCESS = 'FETCH_USER_BY_ID_SUCCESS';
-export const ADD_USER_SUCCESS = 'ADD_USER_SUCCESS';
-export const UPDATE_USER_SUCCESS = 'UPDATE_USER_SUCCESS';
-export const DELETE_USER_SUCCESS = 'DELETE_USER_SUCCESS';
+export const fetchUsers = () => async (dispatch: any) => {
+    try {
+        const res = await getAll();
 
-export const fetchUsers =  () => {
-    return async (dispatch: any) => {
-        try {
-            const res = await userService.getUsers();
-            dispatch({type: FETCH_USERS_SUCCESS, payload: res});
-        } catch (error) {
-            console.error('Error fetching users:', error);
-        }
+        dispatch({
+            type: FETCH_USERS,
+            payload: res.data
+        });
+    } catch (err) {
+        console.log(err)
     }
 };
 
-export const fetchUserById = (userId: number) => {
-    let res = userService.getUserById(userId)
-    return {type: FETCH_USER_BY_ID_SUCCESS, payload: res}
-}
-export const addUser = (user: User) => {
-    userService.addUser(user).then(r => r)
-    return {type: ADD_USER_SUCCESS, payload: user};
-}
-export const updateUser = (userId: number, userData: User) => {
-    userService.updateUser(userId, userData).then(r => r)
-    return {type: UPDATE_USER_SUCCESS, payload: userData}
+export const fetchUser = (userId: number) => async (dispatch: any)=> {
+    try {
+        const res = await getOne(userId);
+
+        dispatch({
+            type: FETCH_USER_BY_ID,
+            payload: res.data
+        });
+    } catch (err) {
+        console.log(err)
+    }
 }
 
-export const deleteUser = (userId: number) => {
-    let res = userService.deleteUser(userId).then(r => r)
-    return { type: DELETE_USER_SUCCESS, payload: res };
+export const addUser = (user: User) => async (dispatch: any) => {
+    try {
+        const res = await create(user);
 
+        dispatch({
+            type: ADD_USER,
+            payload: res.data
+        });
+        return Promise.resolve(res.data);
+    } catch (err) {
+        return Promise.reject(err);
+    }
+};
+
+export const updateUser = (userId: number, user: User) => async (dispatch: any)=> {
+    try {
+        const res = await updateOne(userId, user);
+
+        dispatch({
+            type: UPDATE_USER,
+            payload: res.data
+        })
+        return Promise.resolve(res.data);
+    } catch (err) {
+        return Promise.reject(err);
+    }
+};
+
+export const deleteUser = (userId: number) => async (dispatch: any)=> {
+    try {
+        const res = await deleteOne(userId);
+
+        dispatch({
+            type: DELETE_USER,
+            payload: userId
+        })
+    } catch (err) {
+        console.log(err);
+    }
 };
